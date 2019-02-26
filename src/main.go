@@ -1,22 +1,40 @@
 package main
 
-func main() {
-	forwardTCP(forwardConf{
-		LocalAddr:  "127.0.0.1:8080",
-		RemoteAddr: "httpbin.org:80",
-	})
-	forwardTCP(forwardConf{
-		LocalAddr:  "127.0.0.1:8081",
-		RemoteAddr: "httpbin.org:80",
-	})
-	forwardUDP(forwardConf{
-		LocalAddr:  "127.0.0.1:53",
-		RemoteAddr: "119.29.29.29:53",
-	})
-	forwardUDP(forwardConf{
-		LocalAddr:  "127.0.0.1:5300",
-		RemoteAddr: "119.29.29.29:53",
-	})
+import (
+	"log"
+	"net/url"
+	"os"
+)
 
+func main() {
+	for _, arg := range os.Args[1:] {
+		forwardURL(arg)
+	}
 	select {}
+}
+
+func forwardURL(u string) {
+	p, err := url.Parse(u)
+	if err != nil {
+		log.Fatalf("Failed to parse URL: %v", err)
+	}
+	switch p.Scheme {
+	case "tcp":
+		forwardTCP(forwardConf{
+			LocalAddr:  p.Host,
+			RemoteAddr: p.User.String(),
+		})
+	case "udp":
+		conf := forwardConf{
+			LocalAddr:  p.Host,
+			RemoteAddr: p.User.String(),
+			Options:    map[string]string{},
+		}
+		for k, v := range p.Query() {
+			conf.Options[k] = v[0]
+		}
+		forwardUDP(conf)
+	default:
+		log.Fatalf("Unsupported protocol: %s", p.Scheme)
+	}
 }
