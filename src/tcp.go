@@ -8,42 +8,54 @@ import (
 )
 
 //noinspection GoUnhandledErrorResult
-func forwardTCP(conf *forwardConf) {
-	l, err := net.Listen("tcp", conf.LocalAddr)
+func forwardTCP(conf forwardConf) {
+	localAddr, err := net.ResolveTCPAddr("tcp", conf.LocalAddr)
 	if err != nil {
-		log.Fatalf("TCP: Failed to listen on %s: %v", conf.LocalAddr, err)
+		log.Fatalf("[TCP] Failed to resolve local addr: %v", err)
 	}
-	log.Printf("TCP: Listening on %s", conf.LocalAddr)
+	remoteAddr, err := net.ResolveTCPAddr("tcp", conf.RemoteAddr)
+	if err != nil {
+		log.Fatalf("[TCP] Failed to resolve remote addr: %v", err)
+	}
 
-	for {
-		c, err := l.Accept()
-		if err != nil {
-			log.Printf("TCP: Failed to accept on %s: %v", conf.LocalAddr, err)
-			continue
-		}
-		log.Printf("TCP: New connection from %v to %v", c.RemoteAddr(), c.LocalAddr())
+	l, err := net.ListenTCP("tcp", localAddr)
+	if err != nil {
+		log.Fatalf("[TCP] Local error: %v", err)
+	}
+	log.Printf("[TCP] Listening on %v", l.Addr())
 
-		go func() {
-			defer c.Close()
-			_ = c.(*net.TCPConn).SetKeepAlive(true)
-
-			rc, err := net.Dial("tcp", conf.RemoteAddr)
+	go func() {
+		for {
+			c, err := l.AcceptTCP()
 			if err != nil {
-				log.Printf("TCP: Failed to dial to %s: %v", conf.RemoteAddr, err)
-				return
+				log.Printf("[TCP] Local error: %v", err)
+				continue
 			}
-			defer rc.Close()
-			_ = rc.(*net.TCPConn).SetKeepAlive(true)
+			log.Printf("[TCP] New connection from %v to %v", c.RemoteAddr(), c.LocalAddr())
 
-			go tcpRelay(c, rc)
-			tcpRelay(rc, c)
-		}()
-	}
+			go func() {
+				defer c.Close()
+				c.SetKeepAlive(true)
+
+				rc, err := net.DialTCP("tcp", nil, remoteAddr)
+				if err != nil {
+					log.Printf("[TCP] Remote error: %v", err)
+					return
+				}
+				defer rc.Close()
+				rc.SetKeepAlive(true)
+
+				go tcpRelay(c, rc)
+				tcpRelay(rc, c)
+			}()
+		}
+	}()
 }
 
-func tcpRelay(dst, src net.Conn) error {
+//noinspection GoUnhandledErrorResult
+func tcpRelay(dst, src *net.TCPConn) error {
 	_, err := io.Copy(dst, src)
-	_ = src.SetDeadline(time.Now())
-	_ = dst.SetDeadline(time.Now())
+	src.SetDeadline(time.Now())
+	dst.SetDeadline(time.Now())
 	return err
 }
