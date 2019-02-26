@@ -41,7 +41,9 @@ func forwardUDP(conf forwardConf) {
 		for {
 			n, clientAddr, err := l.ReadFromUDP(buf)
 			if err != nil {
-				log.Printf("[UDP] Local error: %v", err)
+				if err, ok := err.(net.Error); ok && !err.Timeout() {
+					log.Printf("[UDP] Local error: %v", err)
+				}
 				continue
 			}
 
@@ -84,7 +86,9 @@ func udpRelay(nc *natConn, local *net.UDPConn, clientAddr *net.UDPAddr) error {
 		nc.UpdateDeadline()
 		n, err := nc.conn.Read(buf)
 		if err != nil {
-			log.Printf("[UDP] Remote error: %v", err)
+			if err, ok := err.(net.Error); ok && !err.Timeout() {
+				log.Printf("[UDP] Remote error: %v", err)
+			}
 			nc.Close(clientAddr)
 			return err
 		}
