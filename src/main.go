@@ -4,11 +4,15 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"strings"
 )
 
 func main() {
 	for _, arg := range os.Args[1:] {
-		forwardURL(arg)
+		arg = strings.TrimSpace(arg)
+		if len(arg) > 0 {
+			forwardURL(arg)
+		}
 	}
 	select {}
 }
