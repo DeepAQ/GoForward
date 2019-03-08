@@ -14,8 +14,9 @@ GoForward URL [URL...]
 protocol://remoteAddress:port@[localAddress]:port[/?parameters]
 ```
 
-- protocol: `tcp` or `udp`
+- protocol: `tcp` or `udp` or `pprof`
 - remoteAddress / localAddress: IPv4 or IPv6 or hostname
+    - `pprof` protocol only needs local address and port
 - parameters:
     - `timeout` (UDP only): I/O timeout for new connections, default `10s`
     - `streamTimeout` (UDP only): I/O timeout for assured connections, default `3m`

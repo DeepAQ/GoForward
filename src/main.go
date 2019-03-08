@@ -38,6 +38,8 @@ func forwardURL(u string) {
 			conf.Options[k] = v[0]
 		}
 		forwardUDP(conf)
+	case "pprof":
+		listenPProf(p.Host)
 	default:
 		log.Fatalf("Unsupported protocol: %s", p.Scheme)
 	}
